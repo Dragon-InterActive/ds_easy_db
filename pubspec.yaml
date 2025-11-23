@@ -1,0 +1,20 @@
+name: ds_easy_db
+description: "A unified database abstraction layer for Flutter. Supports multiple storage backends through a simple, consistent API."
+version: 1.0.0
+homepage: https://github.com/Dragon-InterActive/ds_easy_db
+license: BSD-3-Clause
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.35.1'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:

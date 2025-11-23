@@ -1,5 +1,21 @@
 import 'repositories/database_repository.dart';
 
+/// A mock implementation of [DatabaseRepository] for testing.
+///
+/// MockDatabase stores all data in memory and provides a simple way to test
+/// database operations without requiring actual database connections.
+///
+/// Perfect for unit tests and development.
+///
+/// Example:
+/// ```dart
+/// db.configure(
+///   prefs: MockDatabase(),
+///   secure: MockDatabase(),
+///   storage: MockDatabase(),
+///   stream: MockDatabase(),
+/// );
+/// ```
 class MockDatabase implements DatabaseRepository {
   final Map<String, Map<String, Map<String, dynamic>>> _data = {};
 

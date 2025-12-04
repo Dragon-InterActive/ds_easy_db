@@ -218,7 +218,7 @@ void main() {
     prefs: MockDatabase(),
     secure: MockDatabase(),
     storage: MockDatabase(),
-    stream: MockDatabase(), // Note: Mock doesn't support streaming
+    stream: MockStreamDatabase(), // Note: Mock doesn't support streaming
   );
   
   // No init() needed for MockDatabase

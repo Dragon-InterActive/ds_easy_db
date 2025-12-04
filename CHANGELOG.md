@@ -1,3 +1,9 @@
+## 1.0.2
+
+* Added MockStreamDatabase for testing streaming databases
+* Made configure() parameters optional (not all repositories required)
+* Fixed: MockDatabase cannot be used for stream parameter
+
 ## 1.0.1
 
 * Added dartdoc comments to public API

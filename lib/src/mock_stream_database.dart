@@ -19,9 +19,12 @@ import 'repositories/database_stream_repository.dart';
 /// ```
 class MockStreamDatabase implements DatabaseStreamRepository {
   final Map<String, Map<String, Map<String, dynamic>>> _data = {};
-  final Map<String, StreamController<Map<String, dynamic>?>> _watchControllers = {};
-  final Map<String, StreamController<Map<String, dynamic>?>> _watchAllControllers = {};
-  final Map<String, StreamController<List<Map<String, dynamic>>>> _queryControllers = {};
+  final Map<String, StreamController<Map<String, dynamic>?>> _watchControllers =
+      {};
+  final Map<String, StreamController<Map<String, dynamic>?>>
+      _watchAllControllers = {};
+  final Map<String, StreamController<List<Map<String, dynamic>>>>
+      _queryControllers = {};
 
   @override
   Future<void> init() async {
@@ -38,36 +41,38 @@ class MockStreamDatabase implements DatabaseStreamRepository {
   @override
   Stream<Map<String, dynamic>?> watch(String collection, String id) {
     final key = _getWatchKey(collection, id);
-    
+
     if (!_watchControllers.containsKey(key)) {
-      _watchControllers[key] = StreamController<Map<String, dynamic>?>.broadcast();
+      _watchControllers[key] =
+          StreamController<Map<String, dynamic>?>.broadcast();
     }
-    
+
     // Emit current value immediately
     Future.microtask(() {
       if (_watchControllers.containsKey(key)) {
         _watchControllers[key]?.add(_data[collection]?[id]);
       }
     });
-    
+
     return _watchControllers[key]!.stream;
   }
 
   @override
   Stream<Map<String, dynamic>?> watchAll(String collection) {
     final key = _getWatchAllKey(collection);
-    
+
     if (!_watchAllControllers.containsKey(key)) {
-      _watchAllControllers[key] = StreamController<Map<String, dynamic>?>.broadcast();
+      _watchAllControllers[key] =
+          StreamController<Map<String, dynamic>?>.broadcast();
     }
-    
+
     // Emit current value immediately
     Future.microtask(() {
       if (_watchAllControllers.containsKey(key)) {
         _watchAllControllers[key]?.add(_data[collection]);
       }
     });
-    
+
     return _watchAllControllers[key]!.stream;
   }
 
@@ -77,22 +82,24 @@ class MockStreamDatabase implements DatabaseStreamRepository {
     Map<String, dynamic> where = const {},
   }) {
     final key = _getQueryKey(collection, where);
-    
+
     if (!_queryControllers.containsKey(key)) {
-      _queryControllers[key] = StreamController<List<Map<String, dynamic>>>.broadcast();
+      _queryControllers[key] =
+          StreamController<List<Map<String, dynamic>>>.broadcast();
     }
-    
+
     // Emit current value immediately
     Future.microtask(() {
       if (_queryControllers.containsKey(key)) {
         _queryControllers[key]?.add(_queryData(collection, where));
       }
     });
-    
+
     return _queryControllers[key]!.stream;
   }
 
-  List<Map<String, dynamic>> _queryData(String collection, Map<String, dynamic> where) {
+  List<Map<String, dynamic>> _queryData(
+      String collection, Map<String, dynamic> where) {
     if (!_data.containsKey(collection)) return [];
 
     final collectionData = _data[collection]!;
@@ -124,13 +131,13 @@ class MockStreamDatabase implements DatabaseStreamRepository {
     if (_watchControllers.containsKey(watchKey)) {
       _watchControllers[watchKey]?.add(_data[collection]?[id]);
     }
-    
+
     // Notify watchAll
     final watchAllKey = _getWatchAllKey(collection);
     if (_watchAllControllers.containsKey(watchAllKey)) {
       _watchAllControllers[watchAllKey]?.add(_data[collection]);
     }
-    
+
     // Notify all queries for this collection
     final queryPrefix = '$collection?';
     for (var key in _queryControllers.keys) {
@@ -139,7 +146,7 @@ class MockStreamDatabase implements DatabaseStreamRepository {
         _queryControllers[key]?.add(_queryData(collection, where));
       }
     }
-    
+
     // Also notify queries with empty where
     final emptyQueryKey = _getQueryKey(collection, {});
     if (_queryControllers.containsKey(emptyQueryKey)) {
@@ -150,10 +157,10 @@ class MockStreamDatabase implements DatabaseStreamRepository {
   Map<String, dynamic> _parseQueryKey(String key) {
     final parts = key.split('?');
     if (parts.length < 2) return {};
-    
+
     final queryString = parts[1];
     if (queryString.isEmpty) return {};
-    
+
     final where = <String, dynamic>{};
     for (var pair in queryString.split('&')) {
       final kv = pair.split('=');
@@ -179,7 +186,7 @@ class MockStreamDatabase implements DatabaseStreamRepository {
 
     _data.putIfAbsent(collection, () => {});
     _data[collection]![id] = processedData;
-    
+
     _notifyWatchers(collection, id);
   }
 
@@ -200,14 +207,14 @@ class MockStreamDatabase implements DatabaseStreamRepository {
     final existing = _data[collection]![id] ?? <String, dynamic>{};
     final updated = {...existing, ...processedData};
     _data[collection]![id] = updated;
-    
+
     _notifyWatchers(collection, id);
   }
 
   @override
   Future<void> delete(String collection, String id) async {
     _data[collection]?.remove(id);
-    
+
     _notifyWatchers(collection, id);
   }
 

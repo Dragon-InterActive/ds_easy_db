@@ -21,22 +21,22 @@ class DSEasyDB {
   /// The preferences/settings storage repository.
   ///
   /// Typically used for app settings, user preferences, and cached data.
-  late DatabaseRepository prefs;
+  DatabaseRepository? prefs;
 
   /// The secure storage repository for sensitive data.
   ///
   /// Use this for storing tokens, passwords, API keys, and other sensitive information.
-  late DatabaseRepository secure;
+  DatabaseRepository? secure;
 
   /// The main storage repository (typically cloud storage).
   ///
   /// Used for primary app data, user-generated content, and persistent storage.
-  late DatabaseRepository storage;
+  DatabaseRepository? storage;
 
   /// The streaming database repository for real-time data.
   ///
   /// Provides live updates and real-time synchronization across clients.
-  late DatabaseStreamRepository stream;
+  DatabaseStreamRepository? stream;
 
   static DSEasyDB? _instance;
 
@@ -58,15 +58,15 @@ class DSEasyDB {
   /// );
   /// `
   void configure({
-    required DatabaseRepository prefs,
-    required DatabaseRepository secure,
-    required DatabaseRepository storage,
-    required DatabaseStreamRepository stream,
+    DatabaseRepository? prefs,
+    DatabaseRepository? secure,
+    DatabaseRepository? storage,
+    DatabaseStreamRepository? stream,
   }) {
-    this.prefs = prefs;
-    this.secure = secure;
-    this.storage = storage;
-    this.stream = stream;
+    if (prefs != null) this.prefs = prefs;
+    if (secure != null) this.secure = secure;
+    if (storage != null) this.storage = storage;
+    if (stream != null) this.stream = stream;
   }
 
   /// Initializes all configured database repositories.
@@ -78,10 +78,10 @@ class DSEasyDB {
   /// await db.init();
   /// ```
   Future<void> init() async {
-    await prefs.init();
-    await secure.init();
-    await storage.init();
-    await stream.init();
+    if (prefs != null) await prefs!.init();
+    if (secure != null) await secure!.init();
+    if (storage != null) await storage!.init();
+    if (stream != null) await stream!.init();
   }
 }
 

@@ -10,6 +10,7 @@ A unified database abstraction layer for Flutter that provides a simple, consist
 - **Type Safety**: Strong typing with Dart's type system
 - **Streaming Support**: Real-time data synchronization for supported backends
 - **Mock Database**: Built-in mock implementation for testing
+- **New Caching**: Store cloud data into cache slot or use it as offline buffer
 
 ## Core Concepts
 
@@ -18,6 +19,7 @@ EasyDB organizes database implementations into four categories:
 - **prefs**: Preferences/Settings storage (e.g., SharedPreferences, Hive)
 - **secure**: Encrypted/Secure storage (e.g., FlutterSecureStorage)
 - **storage**: Remote/Cloud storage (e.g., Firestore, REST APIs)
+- **cache**: cache and offline buffer (e.g. data from cloud storage)
 - **stream**: Real-time database with streaming capabilities (e.g., Firebase Realtime Database)
 
 ## Installation
@@ -26,18 +28,19 @@ Add EasyDB to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  ds_easy_db: ^1.0.0
+  ds_easy_db: ^1.1.0
 ```
 
 Then add the sub-packages you need:
 
 ```yaml
 dependencies:
-  ds_easy_db: ^1.0.0
-  ds_easy_db_hive: ^1.0.0
-  ds_easy_db_firestore: ^1.0.0
-  ds_easy_db_firebase_realtime: ^1.0.0
-  ds_easy_db_secure_storage: ^1.0.0
+  ds_easy_db: ^1.1.0
+  ds_easy_db_hive: ^1.0.1
+  ds_easy_db_firestore: ^1.0.1
+  ds_easy_db_firebase_realtime: ^1.0.1
+  ds_easy_db_secure_storage: ^2.0.0
+  ds_easy_db_shared_preferences: ^1.0.1
 ```
 
 ## Quick Start
@@ -52,9 +55,10 @@ import 'package:ds_easy_db_hive/ds_easy_db_hive.dart';
 import 'package:ds_easy_db_firestore/ds_easy_db_firestore.dart';
 import 'package:ds_easy_db_firebase_realtime/ds_easy_db_firebase_realtime.dart';
 import 'package:ds_easy_db_secure_storage/ds_easy_db_secure_storage.dart';
+import 'package:ds_easy_db_shared_preferences/ds_easy_db_shared_preferences.dart';
 
 class EasyDBConfig {
-  static DatabaseRepository get prefs => HiveDatabase();
+  static DatabaseRepository get prefs => SharedPreferencesDatabase();
   static DatabaseRepository get secure => SecureStorageDatabase();
   // Manual Firebase initialization in main()
   static DatabaseRepository get storage => FirestoreDatabase(); 
@@ -62,6 +66,7 @@ class EasyDBConfig {
   static DatabaseRepository get storage => FirestoreDatabase(
     options: DefaultFirebaseOptions.currentPlatform,
   ); 
+  static DatabaseRepository get cache => HiveDatabase();
   // Same for Stream Manual Firebae Realtime Database 
   static DatabaseStreamRepository get stream => FirebaseRealtimeDatabase();
   // Automatic initialization via db.init() in main()
@@ -85,6 +90,7 @@ void main() async {
     prefs: EasyDBConfig.prefs,
     secure: EasyDBConfig.secure,
     storage: EasyDBConfig.storage,
+    cache: EasyDBConfig.cache,
     stream: EasyDBConfig.stream,
   );
   
@@ -110,6 +116,14 @@ await db.storage.set('users', 'user123', {
   'name': 'John Doe',
   'email': 'john@example.com',
   'createdAt': DatabaseRepository.serverTS, // Server timestamp
+});
+
+// take your db.storage - data in $data
+// and store it as cache or offline buffer
+await db.storage.set('users', $data.userid {
+  'name': $data.name,
+  'email': $data.email,
+  'createdAt': $data.createdAt, // Server timestamp from cloud data
 });
 
 // Real-time data
@@ -218,6 +232,7 @@ void main() {
     prefs: MockDatabase(),
     secure: MockDatabase(),
     storage: MockDatabase(),
+    cache: MockDatabase(),
     stream: MockStreamDatabase(), // Note: Mock doesn't support streaming
   );
   
@@ -277,6 +292,7 @@ class MyStreamDatabase implements DatabaseStreamRepository {
 3. **Testing**: Use `MockDatabase` for unit tests
 4. **Security**: Never store sensitive data in `prefs`, use `secure` instead
 5. **Offline-First**: Use `prefs` or `storage` based on your offline requirements
+6. **Caching**: Use `cache` to store data in cache slot based on Hive or SQLite
 
 ## Examples
 

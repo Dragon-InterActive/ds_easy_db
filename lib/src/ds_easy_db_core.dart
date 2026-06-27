@@ -33,6 +33,11 @@ class DSEasyDB {
   /// Used for primary app data, user-generated content, and persistent storage.
   DatabaseRepository? storage;
 
+  /// The cache repository (typically hive).
+  ///
+  /// Used for caching cloud data and offline buffer.
+  DatabaseRepository? cache;
+
   /// The streaming database repository for real-time data.
   ///
   /// Provides live updates and real-time synchronization across clients.
@@ -61,11 +66,13 @@ class DSEasyDB {
     DatabaseRepository? prefs,
     DatabaseRepository? secure,
     DatabaseRepository? storage,
+    DatabaseRepository? cache,
     DatabaseStreamRepository? stream,
   }) {
     if (prefs != null) this.prefs = prefs;
     if (secure != null) this.secure = secure;
     if (storage != null) this.storage = storage;
+    if (cache != null) this.cache = cache;
     if (stream != null) this.stream = stream;
   }
 
@@ -81,6 +88,7 @@ class DSEasyDB {
     if (prefs != null) await prefs!.init();
     if (secure != null) await secure!.init();
     if (storage != null) await storage!.init();
+    if (cache != null) await cache!.init();
     if (stream != null) await stream!.init();
   }
 }

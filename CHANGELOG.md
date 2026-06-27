@@ -1,3 +1,8 @@
+## 1.1.0
+
+* Added Slot cache
+* extended README.md
+
 ## 1.0.2
 
 * Added MockStreamDatabase for testing streaming databases

@@ -218,7 +218,6 @@ This ensures consistent behavior across all database backends without changing y
 - **ds_easy_db_secure_storage**: Encrypted storage using FlutterSecureStorage
 - **ds_easy_db_firestore**: Cloud Firestore integration
 - **ds_easy_db_firebase_realtime**: Firebase Realtime Database with streaming
-- **ds_easy_db_sqlite**: SQLite database (coming soon)
 
 ## Using Mock Database
 
@@ -292,7 +291,7 @@ class MyStreamDatabase implements DatabaseStreamRepository {
 3. **Testing**: Use `MockDatabase` for unit tests
 4. **Security**: Never store sensitive data in `prefs`, use `secure` instead
 5. **Offline-First**: Use `prefs` or `storage` based on your offline requirements
-6. **Caching**: Use `cache` to store data in cache slot based on Hive or SQLite
+6. **Caching**: Use `cache` to store data in cache slot based e.g. on Hive
 
 ## Examples
 

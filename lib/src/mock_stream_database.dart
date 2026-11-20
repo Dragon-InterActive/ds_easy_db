@@ -8,6 +8,10 @@ import 'repositories/database_stream_repository.dart';
 /// that emit updates when data changes. Perfect for unit tests and development
 /// without requiring actual streaming database connections.
 ///
+/// Every listener receives the current value as soon as it subscribes, and
+/// afterwards one event per change. Emitted maps are copies, so listeners
+/// cannot alter the stored data.
+///
 /// Example:
 /// ```dart
 /// db.configure(
@@ -19,61 +23,71 @@ import 'repositories/database_stream_repository.dart';
 /// ```
 class MockStreamDatabase implements DatabaseStreamRepository {
   final Map<String, Map<String, Map<String, dynamic>>> _data = {};
-  final Map<String, StreamController<Map<String, dynamic>?>> _watchControllers =
-      {};
-  final Map<String, StreamController<Map<String, dynamic>?>>
-      _watchAllControllers = {};
-  final Map<String, StreamController<List<Map<String, dynamic>>>>
-      _queryControllers = {};
+
+  final Map<String, _Watch<Map<String, dynamic>?>> _docWatches = {};
+  final Map<String, _Watch<Map<String, dynamic>?>> _collectionWatches = {};
+  final List<_QueryWatch> _queryWatches = [];
 
   @override
   Future<void> init() async {
     // Nothing to do
   }
 
-  String _getWatchKey(String collection, String id) => '$collection:$id';
-  String _getWatchAllKey(String collection) => '$collection:*';
-  String _getQueryKey(String collection, Map<String, dynamic> where) {
-    final whereStr = where.entries.map((e) => '${e.key}=${e.value}').join('&');
-    return '$collection?$whereStr';
+  // ------------------------------------------------------------- snapshots
+
+  Map<String, dynamic>? _documentSnapshot(String collection, String id) {
+    final stored = _data[collection]?[id];
+    return stored == null ? null : Map<String, dynamic>.of(stored);
   }
+
+  Map<String, dynamic>? _collectionSnapshot(String collection) {
+    final collectionData = _data[collection];
+    if (collectionData == null || collectionData.isEmpty) return null;
+    return <String, dynamic>{
+      for (final entry in collectionData.entries)
+        entry.key: Map<String, dynamic>.of(entry.value),
+    };
+  }
+
+  List<Map<String, dynamic>> _querySnapshot(
+    String collection,
+    Map<String, dynamic> where,
+  ) {
+    final collectionData = _data[collection];
+    if (collectionData == null) return [];
+
+    return [
+      for (final entry in collectionData.entries)
+        if (_matches(entry.value, where))
+          <String, dynamic>{'id': entry.key, ...entry.value},
+    ];
+  }
+
+  bool _matches(Map<String, dynamic> item, Map<String, dynamic> where) {
+    for (final entry in where.entries) {
+      if (item[entry.key] != entry.value) return false;
+    }
+    return true;
+  }
+
+  // --------------------------------------------------------------- watches
 
   @override
   Stream<Map<String, dynamic>?> watch(String collection, String id) {
-    final key = _getWatchKey(collection, id);
-
-    if (!_watchControllers.containsKey(key)) {
-      _watchControllers[key] =
-          StreamController<Map<String, dynamic>?>.broadcast();
-    }
-
-    // Emit current value immediately
-    Future.microtask(() {
-      if (_watchControllers.containsKey(key)) {
-        _watchControllers[key]?.add(_data[collection]?[id]);
-      }
-    });
-
-    return _watchControllers[key]!.stream;
+    final watch = _docWatches.putIfAbsent(
+      '$collection\u0000$id',
+      () => _Watch(() => _documentSnapshot(collection, id)),
+    );
+    return watch.stream;
   }
 
   @override
   Stream<Map<String, dynamic>?> watchAll(String collection) {
-    final key = _getWatchAllKey(collection);
-
-    if (!_watchAllControllers.containsKey(key)) {
-      _watchAllControllers[key] =
-          StreamController<Map<String, dynamic>?>.broadcast();
-    }
-
-    // Emit current value immediately
-    Future.microtask(() {
-      if (_watchAllControllers.containsKey(key)) {
-        _watchAllControllers[key]?.add(_data[collection]);
-      }
-    });
-
-    return _watchAllControllers[key]!.stream;
+    final watch = _collectionWatches.putIfAbsent(
+      collection,
+      () => _Watch(() => _collectionSnapshot(collection)),
+    );
+    return watch.stream;
   }
 
   @override
@@ -81,94 +95,34 @@ class MockStreamDatabase implements DatabaseStreamRepository {
     String collection, {
     Map<String, dynamic> where = const {},
   }) {
-    final key = _getQueryKey(collection, where);
-
-    if (!_queryControllers.containsKey(key)) {
-      _queryControllers[key] =
-          StreamController<List<Map<String, dynamic>>>.broadcast();
-    }
-
-    // Emit current value immediately
-    Future.microtask(() {
-      if (_queryControllers.containsKey(key)) {
-        _queryControllers[key]?.add(_queryData(collection, where));
-      }
-    });
-
-    return _queryControllers[key]!.stream;
-  }
-
-  List<Map<String, dynamic>> _queryData(
-      String collection, Map<String, dynamic> where) {
-    if (!_data.containsKey(collection)) return [];
-
-    final collectionData = _data[collection]!;
-
-    if (where.isEmpty) {
-      return collectionData.entries.map((e) {
-        final item = Map<String, dynamic>.from(e.value);
-        item['id'] = e.key;
-        return item;
-      }).toList();
-    }
-
-    return collectionData.entries.where((entry) {
-      final item = entry.value;
-      for (var whereEntry in where.entries) {
-        if (item[whereEntry.key] != whereEntry.value) return false;
-      }
-      return true;
-    }).map((e) {
-      final item = Map<String, dynamic>.from(e.value);
-      item['id'] = e.key;
-      return item;
-    }).toList();
+    // The filter is kept as the original map: turning it into a string key and
+    // parsing it back would change value types (30 would become '30').
+    final filter = Map<String, dynamic>.of(where);
+    final watch = _QueryWatch(
+      collection,
+      () => _querySnapshot(collection, filter),
+    );
+    _queryWatches.add(watch);
+    return watch.stream;
   }
 
   void _notifyWatchers(String collection, String id) {
-    // Notify specific watch
-    final watchKey = _getWatchKey(collection, id);
-    if (_watchControllers.containsKey(watchKey)) {
-      _watchControllers[watchKey]?.add(_data[collection]?[id]);
-    }
-
-    // Notify watchAll
-    final watchAllKey = _getWatchAllKey(collection);
-    if (_watchAllControllers.containsKey(watchAllKey)) {
-      _watchAllControllers[watchAllKey]?.add(_data[collection]);
-    }
-
-    // Notify all queries for this collection
-    final queryPrefix = '$collection?';
-    for (var key in _queryControllers.keys) {
-      if (key.startsWith(queryPrefix)) {
-        final where = _parseQueryKey(key);
-        _queryControllers[key]?.add(_queryData(collection, where));
-      }
-    }
-
-    // Also notify queries with empty where
-    final emptyQueryKey = _getQueryKey(collection, {});
-    if (_queryControllers.containsKey(emptyQueryKey)) {
-      _queryControllers[emptyQueryKey]?.add(_queryData(collection, {}));
+    _docWatches['$collection\u0000$id']?.emit();
+    _collectionWatches[collection]?.emit();
+    for (final watch in _queryWatches) {
+      if (watch.collection == collection) watch.emit();
     }
   }
 
-  Map<String, dynamic> _parseQueryKey(String key) {
-    final parts = key.split('?');
-    if (parts.length < 2) return {};
+  // ---------------------------------------------------------------- writes
 
-    final queryString = parts[1];
-    if (queryString.isEmpty) return {};
-
-    final where = <String, dynamic>{};
-    for (var pair in queryString.split('&')) {
-      final kv = pair.split('=');
-      if (kv.length == 2) {
-        where[kv[0]] = kv[1];
+  Map<String, dynamic> _resolveServerTimestamps(Map<String, dynamic> data) {
+    return data.map((key, value) {
+      if (value == DatabaseRepository.serverTS) {
+        return MapEntry(key, DateTime.now());
       }
-    }
-    return where;
+      return MapEntry(key, value);
+    });
   }
 
   @override
@@ -177,15 +131,8 @@ class MockStreamDatabase implements DatabaseStreamRepository {
     String id,
     Map<String, dynamic> data,
   ) async {
-    final processedData = data.map((key, value) {
-      if (value == DatabaseRepository.serverTS) {
-        return MapEntry(key, DateTime.now());
-      }
-      return MapEntry(key, value);
-    });
-
     _data.putIfAbsent(collection, () => {});
-    _data[collection]![id] = processedData;
+    _data[collection]![id] = _resolveServerTimestamps(data);
 
     _notifyWatchers(collection, id);
   }
@@ -196,17 +143,9 @@ class MockStreamDatabase implements DatabaseStreamRepository {
     String id,
     Map<String, dynamic> data,
   ) async {
-    final processedData = data.map((key, value) {
-      if (value == DatabaseRepository.serverTS) {
-        return MapEntry(key, DateTime.now());
-      }
-      return MapEntry(key, value);
-    });
-
     _data.putIfAbsent(collection, () => {});
     final existing = _data[collection]![id] ?? <String, dynamic>{};
-    final updated = {...existing, ...processedData};
-    _data[collection]![id] = updated;
+    _data[collection]![id] = {...existing, ..._resolveServerTimestamps(data)};
 
     _notifyWatchers(collection, id);
   }
@@ -220,17 +159,49 @@ class MockStreamDatabase implements DatabaseStreamRepository {
 
   /// Closes all stream controllers. Call this in tests cleanup.
   void dispose() {
-    for (var controller in _watchControllers.values) {
-      controller.close();
+    for (final watch in _docWatches.values) {
+      watch.close();
     }
-    for (var controller in _watchAllControllers.values) {
-      controller.close();
+    for (final watch in _collectionWatches.values) {
+      watch.close();
     }
-    for (var controller in _queryControllers.values) {
-      controller.close();
+    for (final watch in _queryWatches) {
+      watch.close();
     }
-    _watchControllers.clear();
-    _watchAllControllers.clear();
-    _queryControllers.clear();
+    _docWatches.clear();
+    _collectionWatches.clear();
+    _queryWatches.clear();
   }
+}
+
+/// One watched value: a broadcast source of changes plus a snapshot function,
+/// so that each new listener starts with the current value instead of whatever
+/// happened to be emitted before it subscribed.
+class _Watch<T> {
+  _Watch(this._snapshot);
+
+  final T Function() _snapshot;
+  final StreamController<T> _changes = StreamController<T>.broadcast();
+
+  Stream<T> get stream => Stream<T>.multi((listener) {
+        listener.add(_snapshot());
+        final subscription = _changes.stream.listen(
+          listener.add,
+          onError: listener.addError,
+          onDone: listener.close,
+        );
+        listener.onCancel = subscription.cancel;
+      });
+
+  void emit() {
+    if (_changes.hasListener) _changes.add(_snapshot());
+  }
+
+  void close() => _changes.close();
+}
+
+class _QueryWatch extends _Watch<List<Map<String, dynamic>>> {
+  _QueryWatch(this.collection, super.snapshot);
+
+  final String collection;
 }

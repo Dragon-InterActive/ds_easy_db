@@ -7,13 +7,16 @@ import 'repositories/database_repository.dart';
 ///
 /// Perfect for unit tests and development.
 ///
+/// Every read hands out a copy, so a caller mutating a returned map can never
+/// change what is stored — the same guarantee a real backend gives.
+///
 /// Example:
 /// ```dart
 /// db.configure(
 ///   prefs: MockDatabase(),
 ///   secure: MockDatabase(),
 ///   storage: MockDatabase(),
-///   stream: MockDatabase(),
+///   stream: MockStreamDatabase(),
 /// );
 /// ```
 class MockDatabase implements DatabaseRepository {
@@ -21,7 +24,16 @@ class MockDatabase implements DatabaseRepository {
 
   @override
   Future<void> init() async {
-    // Nichts zu tun
+    // Nothing to initialise.
+  }
+
+  Map<String, dynamic> _resolveServerTimestamps(Map<String, dynamic> data) {
+    return data.map((key, value) {
+      if (value == DatabaseRepository.serverTS) {
+        return MapEntry(key, DateTime.now());
+      }
+      return MapEntry(key, value);
+    });
   }
 
   @override
@@ -30,15 +42,8 @@ class MockDatabase implements DatabaseRepository {
     String id,
     Map<String, dynamic> data,
   ) async {
-    final processedData = data.map((key, value) {
-      if (value == DatabaseRepository.serverTS) {
-        return MapEntry(key, DateTime.now());
-      }
-      return MapEntry(key, value);
-    });
-
     _data.putIfAbsent(collection, () => {});
-    _data[collection]![id] = processedData;
+    _data[collection]![id] = _resolveServerTimestamps(data);
   }
 
   @override
@@ -47,17 +52,9 @@ class MockDatabase implements DatabaseRepository {
     String id,
     Map<String, dynamic> data,
   ) async {
-    final processedData = data.map((key, value) {
-      if (value == DatabaseRepository.serverTS) {
-        return MapEntry(key, DateTime.now());
-      }
-      return MapEntry(key, value);
-    });
-
     _data.putIfAbsent(collection, () => {});
     final existing = _data[collection]![id] ?? <String, dynamic>{};
-    final updated = {...existing, ...processedData};
-    _data[collection]![id] = updated;
+    _data[collection]![id] = {...existing, ..._resolveServerTimestamps(data)};
   }
 
   @override
@@ -66,12 +63,19 @@ class MockDatabase implements DatabaseRepository {
     String id, {
     dynamic defaultValue,
   }) async {
-    return _data[collection]?[id] ?? defaultValue;
+    final stored = _data[collection]?[id];
+    if (stored == null) return defaultValue;
+    return Map<String, dynamic>.of(stored);
   }
 
   @override
   Future<Map<String, dynamic>?> getAll(String collection) async {
-    return _data[collection];
+    final collectionData = _data[collection];
+    if (collectionData == null || collectionData.isEmpty) return null;
+    return <String, dynamic>{
+      for (final entry in collectionData.entries)
+        entry.key: Map<String, dynamic>.of(entry.value),
+    };
   }
 
   @override
@@ -84,21 +88,9 @@ class MockDatabase implements DatabaseRepository {
     String collection, {
     required Map<String, dynamic> where,
   }) async {
-    if (!_data.containsKey(collection)) return false;
-
-    final collectionData = _data[collection]!;
-
-    for (var item in collectionData.values) {
-      bool matches = true;
-      for (var entry in where.entries) {
-        if (item[entry.key] != entry.value) {
-          matches = false;
-          break;
-        }
-      }
-      if (matches) return true;
-    }
-    return false;
+    final collectionData = _data[collection];
+    if (collectionData == null) return false;
+    return collectionData.values.any((item) => _matches(item, where));
   }
 
   @override
@@ -106,24 +98,28 @@ class MockDatabase implements DatabaseRepository {
     _data[collection]?.remove(id);
   }
 
+  /// Returns the matching documents, each with its document id under `id`.
+  ///
+  /// A document that carries its own `id` field keeps it.
   @override
   Future<List<Map<String, dynamic>>> query(
     String collection, {
     Map<String, dynamic> where = const {},
   }) async {
-    if (!_data.containsKey(collection)) return [];
+    final collectionData = _data[collection];
+    if (collectionData == null) return [];
 
-    final collectionData = _data[collection]!;
+    return [
+      for (final entry in collectionData.entries)
+        if (_matches(entry.value, where))
+          <String, dynamic>{'id': entry.key, ...entry.value},
+    ];
+  }
 
-    if (where.isEmpty) {
-      return collectionData.values.toList();
+  bool _matches(Map<String, dynamic> item, Map<String, dynamic> where) {
+    for (final entry in where.entries) {
+      if (item[entry.key] != entry.value) return false;
     }
-
-    return collectionData.values.where((item) {
-      for (var entry in where.entries) {
-        if (item[entry.key] != entry.value) return false;
-      }
-      return true;
-    }).toList();
+    return true;
   }
 }

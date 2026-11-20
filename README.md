@@ -28,19 +28,19 @@ Add EasyDB to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  ds_easy_db: ^1.1.0
+  ds_easy_db: ^1.1.1
 ```
 
 Then add the sub-packages you need:
 
 ```yaml
 dependencies:
-  ds_easy_db: ^1.1.0
-  ds_easy_db_hive: ^1.0.1
+  ds_easy_db: ^1.1.1
+  ds_easy_db_hive: ^1.1.0
   ds_easy_db_firestore: ^1.0.1
   ds_easy_db_firebase_realtime: ^1.0.1
-  ds_easy_db_secure_storage: ^2.0.0
-  ds_easy_db_shared_preferences: ^1.0.1
+  ds_easy_db_secure_storage: ^2.1.0
+  ds_easy_db_shared_preferences: ^1.1.0
 ```
 
 ## Quick Start
@@ -106,13 +106,13 @@ void main() async {
 import 'package:ds_easy_db/ds_easy_db.dart';
 
 // Store user preferences
-await db.prefs.set('settings', 'theme', {'mode': 'dark'});
+await db.prefs!.set('settings', 'theme', {'mode': 'dark'});
 
 // Store sensitive data
-await db.secure.set('tokens', 'auth', {'token': 'secret123'});
+await db.secure!.set('tokens', 'auth', {'token': 'secret123'});
 
 // Store in cloud
-await db.storage.set('users', 'user123', {
+await db.storage!.set('users', 'user123', {
   'name': 'John Doe',
   'email': 'john@example.com',
   'createdAt': DatabaseRepository.serverTS, // Server timestamp
@@ -120,14 +120,14 @@ await db.storage.set('users', 'user123', {
 
 // take your db.storage - data in $data
 // and store it as cache or offline buffer
-await db.storage.set('users', $data.userid {
+await db.storage!.set('users', $data.userid {
   'name': $data.name,
   'email': $data.email,
   'createdAt': $data.createdAt, // Server timestamp from cloud data
 });
 
 // Real-time data
-db.stream.watch('users', 'user123').listen((data) {
+db.stream!.watch('users', 'user123').listen((data) {
   print('User data updated: $data');
 });
 ```
@@ -138,52 +138,52 @@ db.stream.watch('users', 'user123').listen((data) {
 
 ```dart
 // Create or overwrite
-await db.storage.set('collection', 'id', {'key': 'value'});
+await db.storage!.set('collection', 'id', {'key': 'value'});
 
 // Update existing
-await db.storage.update('collection', 'id', {'key': 'newValue'});
+await db.storage!.update('collection', 'id', {'key': 'newValue'});
 
 // Read single document
-final data = await db.storage.get('collection', 'id');
+final data = await db.storage!.get('collection', 'id');
 
 // Read with default value
-final data = await db.storage.get('collection', 'id', defaultValue: {});
+final data = await db.storage!.get('collection', 'id', defaultValue: {});
 
 // Read all documents
-final allData = await db.storage.getAll('collection');
+final allData = await db.storage!.getAll('collection');
 
 // Check existence
-final exists = await db.storage.exists('collection', 'id');
+final exists = await db.storage!.exists('collection', 'id');
 
 // Query with filters
-final results = await db.storage.query('collection', 
+final results = await db.storage!.query('collection', 
   where: {'status': 'active'}
 );
 
 // Check if any document matches
-final hasActive = await db.storage.existsWhere('collection',
+final hasActive = await db.storage!.existsWhere('collection',
   where: {'status': 'active'}
 );
 
 // Delete
-await db.storage.delete('collection', 'id');
+await db.storage!.delete('collection', 'id');
 ```
 
 ### Streaming Operations
 
 ```dart
 // Watch single document
-db.stream.watch('collection', 'id').listen((data) {
+db.stream!.watch('collection', 'id').listen((data) {
   print('Document updated: $data');
 });
 
 // Watch entire collection
-db.stream.watchAll('collection').listen((data) {
+db.stream!.watchAll('collection').listen((data) {
   print('Collection updated: $data');
 });
 
 // Watch with query
-db.stream.watchQuery('collection', 
+db.stream!.watchQuery('collection', 
   where: {'status': 'active'}
 ).listen((results) {
   print('Active items: ${results.length}');
@@ -197,7 +197,7 @@ Different databases handle timestamps differently (Firestore uses `FieldValue.se
 EasyDB solves this with `DatabaseRepository.serverTS` - a unified placeholder that automatically converts to the correct format for each database implementation:
 
 ```dart
-await db.storage.set('posts', 'post123', {
+await db.storage!.set('posts', 'post123', {
   'title': 'Hello World',
   'createdAt': DatabaseRepository.serverTS, // Automatically uses correct timestamp format
   'updatedAt': DatabaseRepository.serverTS,

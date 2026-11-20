@@ -1,3 +1,16 @@
+## 1.1.1
+
+* Fixed: `MockStreamDatabase.watchQuery` with a filter returned no results
+  after the first write (filter values were compared as strings).
+* Fixed: `MockStreamDatabase` emitted twice per write to unfiltered queries.
+* `MockStreamDatabase`: every listener now receives the current value on
+  subscribe; subscribing no longer replays an event to existing listeners.
+* `MockDatabase` / `MockStreamDatabase`: reads return copies; `getAll` and
+  `watchAll` return `null` for an empty collection, as documented.
+* `query` / `watchQuery` results now include the document id as `id`
+  (a document's own `id` field is kept).
+* Documentation fixes (`configure` parameters are optional, null-safe examples).
+
 ## 1.1.0
 
 * Added Slot cache

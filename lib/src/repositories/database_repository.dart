@@ -78,6 +78,9 @@ abstract class DatabaseRepository {
   ///
   /// Returns a list of documents that match all field-value pairs in [where].
   ///
+  /// Every returned document carries its document id under the key `id`.
+  /// A document that stores its own `id` field keeps that value.
+  ///
   /// [collection] The collection/table name.
   /// [where] Map of field-value pairs to filter by. Empty map returns all documents.
   Future<List<Map<String, dynamic>>> query(

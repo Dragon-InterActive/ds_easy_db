@@ -50,8 +50,9 @@ class DSEasyDB {
 
   /// Configures the database repositories.
   ///
-  /// This must be called before [init]. Each repository parameter is required
-  /// and should be initialized with the appropriate implementation.
+  /// This must be called before [init]. Every parameter is optional: pass only
+  /// the repositories your app uses. Calling it again replaces the passed
+  /// repositories and keeps the others.
   ///
   /// Example:
   /// ```dart
@@ -61,7 +62,7 @@ class DSEasyDB {
   ///   storage: FirestoreDatabase(options: DefaultFirebaseOptions.currentPlatform),
   ///   stream: FirebaseRealtimeDatabase(options: DefaultFirebaseOptions.currentPlatform),
   /// );
-  /// `
+  /// ```
   void configure({
     DatabaseRepository? prefs,
     DatabaseRepository? secure,
@@ -97,7 +98,7 @@ class DSEasyDB {
 ///
 /// Example:
 /// ```dart
-/// await db.storage.set('users', 'user123', {'name': 'John'});
-/// final user = await db.storage.get('users', 'user123');
+/// await db.storage!.set('users', 'user123', {'name': 'John'});
+/// final user = await db.storage!.get('users', 'user123');
 /// ```
 final db = DSEasyDB.instance;
